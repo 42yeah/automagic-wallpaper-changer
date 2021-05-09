@@ -1,22 +1,20 @@
 mod weather;
+mod config;
+mod wallpaper;
 
-use std::{env, error::Error, fs::create_dir, io::{ErrorKind, Read}, path::Path, time::Duration};
+use std::{env, error::Error, fs::create_dir, io::{ErrorKind, Read}, path::Path};
 
 use reqwest::{blocking::Client, header::{HeaderMap, HeaderValue}};
 use serde::{Serialize, Deserialize};
+pub use config::Config;
+pub use weather::get_weather;
+
+use crate::config::DownloadQuality;
+pub use crate::wallpaper::set_wallpaper;
 
 const API_BASE_URL: &str = "https://api.unsplash.com";
 pub const DEFAULT_CONFIG_PATH: &str = "./config.json";
 const MAXIMUM_PER_PAGE: i32 = 100;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum DownloadQuality {
-    Raw,
-    Full,
-    Regular,
-    Small,
-    Thumb
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Urls {
@@ -39,10 +37,15 @@ pub struct SearchResults {
     pub results: Vec<SearchResult>
 }
 
-pub fn make_client() -> Result<Client, Box<dyn Error>> {
+pub fn make_unsplash_client(config: &Config) -> Result<Client, Box<dyn Error>> {
     let mut default_headers = HeaderMap::new();
     default_headers.append("Authorization", HeaderValue::from_str(
-        &format!("Client-ID {}", env::var("AWC_UNSPLASH_KEY")?))?);
+        &format!("Client-ID {}", match &config.unsplash_access_key {
+            Some(key) => key.clone(),
+            None => {
+                env::var("AWC_UNSPLASH_KEY")?
+            }
+        }))?);
     let client = Client::builder()
         .default_headers(default_headers)
         .build()?;
@@ -125,32 +128,6 @@ impl ToString for Hour {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Config {
-    pub repeat_secs: u64,
-    pub quality: DownloadQuality,
-    pub unsplash_access_key: Option<String>,
-    pub openweather_access_key: Option<String>
-}
-
-impl Config {
-    pub fn from_path(path: &str) -> Result<Config, Box<dyn Error>> {
-        let path = Path::new(path);
-        if path.exists() {
-            return Ok(serde_json::from_str(&std::fs::read_to_string(&path)?)?)
-        }
-        let config = Config {
-            repeat_secs: 3600,
-            quality: DownloadQuality::Regular,
-            unsplash_access_key: None,
-            openweather_access_key: None
-        };
-        let config_str = serde_json::to_string(&config)?;
-        std::fs::write("config.json", config_str)?;
-        Ok(config)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -161,12 +138,12 @@ mod tests {
 
     #[test]
     fn test_client() {
-        assert!(make_client().is_ok());
+        assert!(make_unsplash_client(&Config::from_path(DEFAULT_CONFIG_PATH).unwrap()).is_ok());
     }
 
     #[test]
     fn test_search() {
-        let client = make_client().unwrap();
+        let client = make_unsplash_client(&Config::from_path(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
         assert!(search_photos(&client, "noon").is_ok());
     }
 
@@ -183,24 +160,39 @@ mod tests {
                 thumb: String::new()
             }
         };
-        let path = download_photo(&make_client().unwrap(), &fake_result, DownloadQuality::Full).unwrap();
+        let path = download_photo(&make_unsplash_client(&Config::from_path(DEFAULT_CONFIG_PATH).unwrap()).unwrap(), &fake_result, DownloadQuality::Full).unwrap();
         assert!(Path::new(&path).exists());
     }
 
     #[test]
     fn test_generate_config() {
-        std::fs::remove_file(DEFAULT_CONFIG_PATH).unwrap();
-        let config = Config::from_path(DEFAULT_CONFIG_PATH).unwrap();
+        match std::fs::remove_file("test.json") {
+            Ok(_) => {},
+            Err(e) => {
+                if e.kind() != ErrorKind::NotFound {
+                    panic!("{}", e);
+                }
+            }
+        }
+        let config = Config::from_path("test.json").unwrap();
         assert_eq!(config.repeat_secs, 3600);
         match config.quality {
             DownloadQuality::Regular => {},
             _ => panic!("Incorrect quality")
         }
-        let config = Config::from_path(DEFAULT_CONFIG_PATH).unwrap();
+        let config = Config::from_path("test.json").unwrap();
         assert_eq!(config.repeat_secs, 3600);
         match config.quality {
             DownloadQuality::Regular => {},
             _ => panic!("Incorrect quality")
+        }
+        match std::fs::remove_file("test.json") {
+            Ok(_) => {},
+            Err(e) => {
+                if e.kind() != ErrorKind::NotFound {
+                    panic!("{}", e);
+                }
+            }
         }
     }
 
