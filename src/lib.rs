@@ -1,0 +1,212 @@
+mod weather;
+
+use std::{env, error::Error, fs::create_dir, io::{ErrorKind, Read}, path::Path, time::Duration};
+
+use reqwest::{blocking::Client, header::{HeaderMap, HeaderValue}};
+use serde::{Serialize, Deserialize};
+
+const API_BASE_URL: &str = "https://api.unsplash.com";
+pub const DEFAULT_CONFIG_PATH: &str = "./config.json";
+const MAXIMUM_PER_PAGE: i32 = 100;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum DownloadQuality {
+    Raw,
+    Full,
+    Regular,
+    Small,
+    Thumb
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Urls {
+    pub raw: String,
+    pub full: String,
+    pub regular: String,
+    pub small: String,
+    pub thumb: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SearchResult {
+    pub id: String,
+    pub urls: Urls
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SearchResults {
+    pub total: usize,
+    pub results: Vec<SearchResult>
+}
+
+pub fn make_client() -> Result<Client, Box<dyn Error>> {
+    let mut default_headers = HeaderMap::new();
+    default_headers.append("Authorization", HeaderValue::from_str(
+        &format!("Client-ID {}", env::var("AWC_UNSPLASH_KEY")?))?);
+    let client = Client::builder()
+        .default_headers(default_headers)
+        .build()?;
+    Ok(client)
+}
+
+pub fn search_photos(client: &Client, query: &str) -> Result<SearchResults, Box<dyn Error>> {
+    let mut response = client.get(format!("{}/search/photos?query={}&per_page={}", 
+        API_BASE_URL,
+        query,
+        MAXIMUM_PER_PAGE)).send()?;
+    let mut data = String::new();
+    response.read_to_string(&mut data)?;
+    let data: SearchResults = serde_json::from_str(&data)?;
+    Ok(data)
+}
+
+pub fn download_photo(client: &Client, photo: &SearchResult, quality: DownloadQuality) -> Result<String, Box<dyn Error>> {
+    let save_path = format!("download/{}.jpg", photo.id); 
+    if Path::new(&save_path).exists() {
+        return Ok(save_path);
+    }
+    let url = match quality {
+        DownloadQuality::Raw => &photo.urls.raw,
+        DownloadQuality::Full => &photo.urls.full,
+        DownloadQuality::Regular => &photo.urls.regular,
+        DownloadQuality::Small => &photo.urls.small,
+        DownloadQuality::Thumb => &photo.urls.thumb
+    };
+    let mut response = client.get(url).send()?;
+    if let Err(e) = create_dir("download") {
+        if e.kind() != ErrorKind::AlreadyExists {
+            return Err(Box::new(e));
+        }
+    }
+    let mut data = Vec::new();
+    response.read_to_end(&mut data)?;
+
+    std::fs::write(&save_path, data)?;
+    Ok(save_path)
+}
+
+pub struct Hour(pub u32);
+
+impl ToString for Hour {
+    fn to_string(&self) -> String {
+        match self.0 {
+            0 | 1 | 2 | 3 | 4 => {
+                String::from("midnight")
+            },
+            5 | 6 => {
+                String::from("twilight")
+            },
+            7 | 8 | 9 => {
+                String::from("morning")
+            },
+            10 | 11 => {
+                String::from("day")
+            },
+            12 | 13 => {
+                String::from("noon")
+            },
+            14 | 15 => {
+                String::from("afternoon")
+            },
+            16 | 17 => {
+                String::from("evening")
+            },
+            18 | 19 => {
+                String::from("late evening")
+            },
+            20 | 21 => {
+                String::from("night")
+            },
+            22 | 23 => {
+                String::from("late night")
+            },
+            _ => panic!("Unreachable")
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Config {
+    pub repeat_secs: u64,
+    pub quality: DownloadQuality,
+    pub unsplash_access_key: Option<String>,
+    pub openweather_access_key: Option<String>
+}
+
+impl Config {
+    pub fn from_path(path: &str) -> Result<Config, Box<dyn Error>> {
+        let path = Path::new(path);
+        if path.exists() {
+            return Ok(serde_json::from_str(&std::fs::read_to_string(&path)?)?)
+        }
+        let config = Config {
+            repeat_secs: 3600,
+            quality: DownloadQuality::Regular,
+            unsplash_access_key: None,
+            openweather_access_key: None
+        };
+        let config_str = serde_json::to_string(&config)?;
+        std::fs::write("config.json", config_str)?;
+        Ok(config)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use chrono::{Local, Timelike};
+
+    use super::*;
+
+    #[test]
+    fn test_client() {
+        assert!(make_client().is_ok());
+    }
+
+    #[test]
+    fn test_search() {
+        let client = make_client().unwrap();
+        assert!(search_photos(&client, "noon").is_ok());
+    }
+
+    #[test]
+    #[ignore]
+    fn test_download() {
+        let fake_result = SearchResult {
+            id: String::from("6GHNuQAVC8Y"),
+            urls: Urls {
+                raw: String::new(),
+                full: String::from("https://images.unsplash.com/photo-1616762897553-c3a04bcf795d?ixid=MnwyMjk2MjV8MHwxfHNlYXJjaHwxfHxub29ufGVufDB8fHx8MTYyMDU2NzEzNA\\u0026ixlib=rb-1.2.1"),
+                regular: String::new(),
+                small: String::new(),
+                thumb: String::new()
+            }
+        };
+        let path = download_photo(&make_client().unwrap(), &fake_result, DownloadQuality::Full).unwrap();
+        assert!(Path::new(&path).exists());
+    }
+
+    #[test]
+    fn test_generate_config() {
+        std::fs::remove_file(DEFAULT_CONFIG_PATH).unwrap();
+        let config = Config::from_path(DEFAULT_CONFIG_PATH).unwrap();
+        assert_eq!(config.repeat_secs, 3600);
+        match config.quality {
+            DownloadQuality::Regular => {},
+            _ => panic!("Incorrect quality")
+        }
+        let config = Config::from_path(DEFAULT_CONFIG_PATH).unwrap();
+        assert_eq!(config.repeat_secs, 3600);
+        match config.quality {
+            DownloadQuality::Regular => {},
+            _ => panic!("Incorrect quality")
+        }
+    }
+
+    #[test]
+    #[ignore = "It might not be 23:00 now"]
+    fn test_now() {
+        assert_eq!(Hour(Local::now().hour()).to_string(), "late night");
+    }
+}

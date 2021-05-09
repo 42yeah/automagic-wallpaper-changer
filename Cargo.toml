@@ -1,0 +1,12 @@
+[package]
+name = "awc"
+version = "0.1.0"
+authors = ["42yeah <42yeah@gmx.fr>"]
+edition = "2018"
+
+[dependencies]
+reqwest = { version = "0.11.3", features = ["blocking"] }
+serde_json = "1.0.64"
+serde = { version = "1.0.125", features = ["derive"] }
+rand = "0.8.3"
+chrono = "0.4.19"
