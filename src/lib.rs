@@ -94,13 +94,16 @@ pub struct Hour(pub u32);
 impl ToString for Hour {
     fn to_string(&self) -> String {
         match self.0 {
-            0 | 1 | 2 | 3 | 4 => {
+            1 | 2 | 3 => {
                 String::from("midnight")
             },
-            5 | 6 => {
+            4 | 5 => {
                 String::from("twilight")
             },
-            7 | 8 | 9 => {
+            6 | 7 => {
+                String::from("sunrise")
+            },
+            8 | 9 => {
                 String::from("morning")
             },
             10 | 11 => {
@@ -109,19 +112,19 @@ impl ToString for Hour {
             12 | 13 => {
                 String::from("noon")
             },
-            14 | 15 => {
+            14 | 15 | 16 => {
                 String::from("afternoon")
             },
-            16 | 17 => {
-                String::from("late afternoon")
+            17 | 18 => {
+                String::from("sunset")
             },
-            18 | 19 => {
+            19 | 20 => {
                 String::from("evening")
             },
-            20 | 21 => {
+            21 | 22 => {
                 String::from("night")
             },
-            22 | 23 => {
+            23 | 0 => {
                 String::from("late night")
             },
             _ => panic!("Unreachable")
