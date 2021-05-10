@@ -63,7 +63,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "Your wallpaper WILL be changed"]
+    // #[ignore = "Your wallpaper WILL be changed"]
     fn test_set_wallpaper() {
         set_wallpaper::set_wallpaper("ferris.png").unwrap()
     }

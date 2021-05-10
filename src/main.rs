@@ -1,6 +1,6 @@
 use std::{process, thread, time::Duration};
 
-use awc::{Config, DEFAULT_CONFIG_PATH, Hour, download_photo, get_weather, make_unsplash_client, search_photos, set_wallpaper};
+use awc::{Config, DEFAULT_CONFIG_PATH, DEFAULT_DOWNLOAD_PATH, Hour, download_photo, get_weather, make_unsplash_client, search_photos, set_wallpaper};
 use chrono::{Local, Timelike};
 use rand::Rng;
 
@@ -47,8 +47,23 @@ Have a lot of fun...");
         }
     };
     let mut attempts = 0;
+    let mut last_hour: Option<u32> = None;
+    let mut last_path: Option<String> = None;
+
+    if config.disable_cache {
+        match std::fs::remove_dir_all(DEFAULT_DOWNLOAD_PATH) {
+            Ok(_) => {
+                println!("Image cache directory has been cleaned up");
+            }
+            Err(_) => {}
+        }
+    }
+
     loop {
         let now = Local::now();
+        if last_hour.is_some() && last_hour.unwrap() == now.hour() {
+            continue;
+        }
         let mut query = Hour(now.hour()).to_string();
         match &config.openweather_access_key {
             Some(x) => match get_weather(x, &config.city_weather) {
@@ -100,6 +115,18 @@ Have a lot of fun...");
         };
 
         attempts = 0;
+        last_hour = Some(now.hour());
+        if config.disable_cache {
+            if let Some(path) = last_path {
+                match std::fs::remove_file(path) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!("Could not removed cached image for some reason: {}. Skipping...", e);
+                    }
+                }
+            }
+        }
+        last_path = Some(path.clone());
         println!("New photo downloaded at: {}. Setting wallpaper...", path);
         
         match set_wallpaper(&path) {

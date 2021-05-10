@@ -14,6 +14,7 @@ pub use crate::wallpaper::set_wallpaper::set_wallpaper;
 
 const API_BASE_URL: &str = "https://api.unsplash.com";
 pub const DEFAULT_CONFIG_PATH: &str = "./config.json";
+pub const DEFAULT_DOWNLOAD_PATH: &str = "download";
 const MAXIMUM_PER_PAGE: i32 = 100;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,7 +65,7 @@ pub fn search_photos(client: &Client, query: &str) -> Result<SearchResults, Box<
 }
 
 pub fn download_photo(client: &Client, photo: &SearchResult, quality: DownloadQuality) -> Result<String, Box<dyn Error>> {
-    let save_path = format!("download/{}.jpg", photo.id); 
+    let save_path = format!("{}/{}.jpg", DEFAULT_DOWNLOAD_PATH, photo.id); 
     if Path::new(&save_path).exists() {
         return Ok(save_path);
     }
@@ -76,7 +77,7 @@ pub fn download_photo(client: &Client, photo: &SearchResult, quality: DownloadQu
         DownloadQuality::Thumb => &photo.urls.thumb
     };
     let mut response = client.get(url).send()?;
-    if let Err(e) = create_dir("download") {
+    if let Err(e) = create_dir(DEFAULT_DOWNLOAD_PATH) {
         if e.kind() != ErrorKind::AlreadyExists {
             return Err(Box::new(e));
         }
@@ -175,15 +176,15 @@ mod tests {
             }
         }
         let config = Config::from_path("test.json").unwrap();
-        assert_eq!(config.repeat_secs, 3600);
+        assert_eq!(config.repeat_secs, 60);
         match config.quality {
-            DownloadQuality::Regular => {},
+            DownloadQuality::Full => {},
             _ => panic!("Incorrect quality")
         }
         let config = Config::from_path("test.json").unwrap();
-        assert_eq!(config.repeat_secs, 3600);
+        assert_eq!(config.repeat_secs, 60);
         match config.quality {
-            DownloadQuality::Regular => {},
+            DownloadQuality::Full => {},
             _ => panic!("Incorrect quality")
         }
         match std::fs::remove_file("test.json") {
