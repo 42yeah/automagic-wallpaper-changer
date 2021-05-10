@@ -1,5 +1,5 @@
 
-use std::{rc::Rc, sync::{self, Arc, Mutex, mpsc::{self, Receiver, Sender}}, thread::{self, JoinHandle}};
+use std::{sync::{mpsc::{self, Receiver, Sender}}, thread::{self, JoinHandle}};
 use std::{time::{Duration, SystemTime}};
 use chrono::{Local, Timelike};
 use rand::Rng;
@@ -12,11 +12,10 @@ const WAIT_SECS: u64 = 60;
 #[derive(Debug)]
 pub enum Message {
     Redownload,
-    Terminate
+    Stop
 }
 
 pub enum MetaMessage {
-    Worker(Arc<Mutex<Worker>>),
     Start,
     Quit
 }
@@ -28,28 +27,19 @@ pub enum State {
 }
 
 pub struct Worker {
-    thread: JoinHandle<()>,
+    thread: Option<JoinHandle<()>>,
     sender: Sender<Message>,
-    meta_sender: Arc<Mutex<Sender<MetaMessage>>>,
-    state: State
+    meta_sender: Sender<MetaMessage>
 }
 
 impl Worker {
-    pub fn new() -> Arc<Mutex<Worker>> {
+    pub fn new() -> Worker {
         let (tx, rx) = mpsc::channel();
         let (sender, receiver) = mpsc::channel();
-        let rx_ptr = Arc::new(Mutex::new(rx));
         let thread = thread::spawn(move || {
-            let worker: MetaMessage = rx_ptr.lock().unwrap().recv().unwrap();
-            let mut worker = match worker {
-                MetaMessage::Worker(worker) => worker,
-                _ => panic!("Unreachable: Wrong meta message")
-            };
-
             loop {
-                Worker::work(worker.clone(), &receiver);
-                match rx_ptr.lock().unwrap().recv().unwrap() {
-                    MetaMessage::Worker(new_worker) => { worker = new_worker },
+                Worker::work(&receiver);
+                match rx.recv().unwrap() {
                     MetaMessage::Start => {},
                     MetaMessage::Quit => break
                 }
@@ -57,19 +47,16 @@ impl Worker {
             
         });
 
-        let meta_sender = Arc::new(Mutex::new(tx));
-        let worker = Arc::new(Mutex::new(Worker {
-            thread,
+        let worker = Worker {
+            thread: Some(thread),
             sender,
-            meta_sender: meta_sender.clone(),
-            state: State::Stopped
-        }));
-        meta_sender.lock().unwrap().send(MetaMessage::Worker(worker.clone())).unwrap();
+            meta_sender: tx
+        };
 
         worker
     }
 
-    fn work(worker: Arc<Mutex<Worker>>, receiver: &Receiver<Message>) {
+    fn work(receiver: &Receiver<Message>) {
         let config = match Config::from_path(DEFAULT_CONFIG_PATH) {
             Ok(config) => config,
             Err(e) => {
@@ -125,7 +112,7 @@ Have a lot of fun...");
             match receiver.try_recv() {
                 Ok(msg) => {
                     match msg {
-                        Message::Terminate => return,
+                        Message::Stop => return,
                         Message::Redownload => last_instant = None
                     }
                 }
@@ -134,19 +121,13 @@ Have a lot of fun...");
 
             let now = Local::now();
             let this_instant = SystemTime::now();
-
-            let mut worker_locked = worker.lock().unwrap();
-            worker_locked.state = State::Idle;
     
             if last_instant.is_some() && 
                 this_instant.duration_since(
                     (&last_instant.unwrap()).clone())
                     .unwrap().as_secs() <= config.update_interval {
-                    drop(worker_locked);
                 continue;
             }
-            worker_locked.state = State::Running;
-            drop(worker_locked);
     
             let mut query = Hour(now.hour()).to_string();
             match &config.openweather_access_key {
@@ -232,7 +213,15 @@ Have a lot of fun...");
     }
 
     pub fn meta_send(&self, msg: MetaMessage) {
-        self.meta_sender.lock().unwrap().send(msg).unwrap();
+        self.meta_sender.send(msg).unwrap();
     }
 }
 
+impl Drop for Worker {
+    fn drop(&mut self) {
+        println!("Gracefully shutting down worker thread...");
+        self.send(Message::Stop);
+        self.meta_send(MetaMessage::Quit);
+        self.thread.take().unwrap().join().unwrap();
+    }
+}
