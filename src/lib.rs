@@ -10,7 +10,7 @@ pub use config::Config;
 pub use weather::get_weather;
 
 use crate::config::DownloadQuality;
-pub use crate::wallpaper::set_wallpaper;
+pub use crate::wallpaper::set_wallpaper::set_wallpaper;
 
 const API_BASE_URL: &str = "https://api.unsplash.com";
 pub const DEFAULT_CONFIG_PATH: &str = "./config.json";
