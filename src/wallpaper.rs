@@ -1,9 +1,23 @@
 use std::{env, io, process::Command};
+use std::os::raw::c_void;
+use std::ffi::OsStr;
+use std::iter;
 
 // Code taken from https://github.com/reujab/wallpaper.rs/blob/master/src/macos.rs
 
 #[cfg(any(target_os = "windows"))]
-pub fn set_wallpaper(path: &str) -> Result<()> {
+use std::os::windows::ffi::OsStrExt;
+#[cfg(any(target_os = "windows"))]
+use winapi::um::winuser::SystemParametersInfoW;
+#[cfg(any(target_os = "windows"))]
+use winapi::um::winuser::SPIF_SENDCHANGE;
+#[cfg(any(target_os = "windows"))]
+use winapi::um::winuser::SPIF_UPDATEINIFILE;
+#[cfg(any(target_os = "windows"))]
+use winapi::um::winuser::SPI_SETDESKWALLPAPER;
+
+#[cfg(any(target_os = "windows"))]
+pub fn set_wallpaper(path: &str) -> Result<(), io::Error> {
     unsafe {
         let path = OsStr::new(path)
             .encode_wide()
