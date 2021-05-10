@@ -12,7 +12,7 @@ pub use weather::get_weather;
 
 pub use worker::{Worker, Message, MetaMessage};
 
-use crate::config::DownloadQuality;
+pub use crate::config::DownloadQuality;
 pub use crate::wallpaper::set_wallpaper::set_wallpaper;
 
 const API_BASE_URL: &str = "https://api.unsplash.com";

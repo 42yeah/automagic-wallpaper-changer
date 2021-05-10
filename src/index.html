@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            cursor: default;
+        }
+
+        input {
+            cursor: text;
+        }
+
+        html {
+            font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+        }
+
+        .container {
+            margin: 13px;
+        }
+
+        h3 {
+            color: #777;
+        }
+
+        .warning {
+            margin-top: 10px;
+        }
+
+        .fields {
+            margin-top: 10px;
+        }
+
+        .input-field {
+            margin-bottom: 10px;
+        }
+
+        .input-field > input, select {
+            width: calc(100% - 13px);
+            border: 0;
+            font-size: 1em;
+            padding: 5px 5px;
+            border: 1px solid #eee;
+            outline: 0;
+            border-radius: 3px;
+        }
+
+        .input-field > input:hover, select:hover {
+            border: 1px solid #aaa;
+        }
+    
+        label {
+            font-size: 15px;
+            margin-bottom: 4px;
+            color: #555;
+            display: block;
+        }
+
+        .save {
+            color: #111;
+            text-decoration: none;
+            padding: 5px 20px;
+            border: 1px #111 solid;
+            background-color: white;
+            transition: all 0.1s;
+            border-radius: 3px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .buttons {
+            margin-top: 20px;
+        }
+
+        .save:hover {
+            background-color: #111;
+            color: white;
+        }
+
+        .start {
+            color: rgb(33, 122, 24);
+            text-decoration: none;
+            padding: 5px 20px;
+            border: 1px rgb(33, 122, 24) solid;
+            background-color: white;
+            transition: all 0.1s;
+            border-radius: 3px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .start:hover {
+            background-color: rgb(33, 122, 24);
+            color: white;
+        }
+
+        .stop {
+            color: rgb(122, 47, 24);
+            text-decoration: none;
+            padding: 5px 20px;
+            border: 1px rgb(122, 47, 24) solid;
+            background-color: white;
+            transition: all 0.1s;
+            border-radius: 3px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .stop:hover {
+            background-color: rgb(122, 47, 24);
+            color: white;
+        }
+
+        .status-bar {
+            margin-top: 40px;
+            padding: 10px 10px;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: #999;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .light {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 100%;
+            margin-right: 10px;
+            transition: 0.5s all;
+        }
+
+        .ok {
+            background-color: rgb(33, 122, 24);
+        }
+
+        .stopped {
+            background-color: rgb(122, 47, 24);
+        }
+
+        .disabled {
+            color: #eee;
+            border: 1px solid #eee;
+        }
+
+        .disabled:hover {
+            color: #eee;
+            border: 1px solid #eee;
+            background-color: unset;
+            pointer-events: none;
+        }
+    </style>
+    <div class="container">
+        <h3>Automagic Wallpaper Changer configuration</h3>
+        <div class="fields">
+            <div class="input-field">
+                <label for="repeat-secs">Repeat every <b>X</b> seconds:</label>
+                <input type="number" id="repeat-secs" placeholder="Worker check interval...">
+            </div>
+            <div class="input-field">
+                <label for="wallpaper-interval">Wallpaper update interval:</label>
+                <input type="number" id="wallpaper-interval" placeholder="How long does the wallpaper updates? (by seconds)">
+            </div>
+            <div class="input-field">
+                <label for="unsplash-access-key">Unsplash access key:</label>
+                <input id="unsplash-access-key" placeholder="">
+            </div>
+            <div class="input-field">
+                <label for="quality">Unsplash image quality:</label>
+                <select id="quality">
+                    <option>Raw</option>
+                    <option>Full</option>
+                    <option>Regular</option>
+                    <option>Small</option>
+                    <option>Thumb</option>
+                </select>
+            </div>
+            <div class="input-field">
+                <label for="openweather-access-key">OpenWeatherMap access key:</label>
+                <input id="openweather-access-key" placeholder="">
+            </div>
+            <div class="input-field">
+                <label for="city">OpenWeatherMap city:</label>
+                <input id="city" placeholder="">
+            </div>
+            <div class="buttons">
+                <a class="save" href="javascript:saveAndRestart()">Save & Restart</a>
+                <a id="feeling-lucky" class="disabled save" href="javascript:lucky()">I'm feeling lucky</a>
+                <a id="start-stop" class="start" href="javascript:startOrStop()">Start</a>
+            </div>
+        </div>
+    </div>
+    <div class="status-bar">
+        <i id="light" class="stopped light"></i> <span id="status">Worker is currently stopped.</span>
+    </div>
+    <script>
+        let running = false;
+        let startStopButton = document.querySelector("#start-stop");
+        let feelingLucky = document.querySelector("#feeling-lucky");
+        let light = document.querySelector("#light");
+        let status = document.querySelector("#status");
+
+        const rpc = {
+            invoke: (arg) => {
+                window.external.invoke(JSON.stringify(arg));
+            },
+            init: () => {
+                rpc.invoke({ cmd: "init" })
+            },
+            start: () => {
+                rpc.invoke({ cmd: "start" });
+            },
+            stop: () => {
+                rpc.invoke({ cmd: "stop" });
+            },
+            lucky: () => {
+                rpc.invoke({ cmd: "lucky" });
+            }
+        };
+
+        rpc.init();
+
+        function saveAndRestart() {
+            
+        }
+
+        function lucky() {
+            rpc.lucky();
+            feelingLucky.classList.add("disabled");
+            setTimeout(() => {
+                feelingLucky.classList.remove("disabled");
+            }, 5000);
+        }
+
+        function startOrStop() {
+            if (running) {
+                rpc.stop();
+                startStopButton.classList.remove("stop");
+                startStopButton.classList.add("start");
+                feelingLucky.classList.add("disabled");
+                light.classList.remove("ok");
+                light.classList.add("stopped");
+                status.innerHTML = "Worker is currently stopped.";
+                startStopButton.innerHTML = "Start";
+            } else {
+                rpc.start();
+                startStopButton.classList.add("stop");
+                startStopButton.classList.remove("start");
+                feelingLucky.classList.remove("disabled");
+                light.classList.remove("stopped");
+                light.classList.add("ok");
+                status.innerHTML = "Worker is currently running.";
+                startStopButton.innerHTML = "Stop";
+            }
+            running = !running;
+        }
+    </script>
+</body>
+</html>

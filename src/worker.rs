@@ -38,11 +38,11 @@ impl Worker {
         let (sender, receiver) = mpsc::channel();
         let thread = thread::spawn(move || {
             loop {
-                Worker::work(&receiver);
                 match rx.recv().unwrap() {
                     MetaMessage::Start => {},
                     MetaMessage::Quit => break
                 }
+                Worker::work(&receiver);
             }
             
         });
@@ -126,6 +126,7 @@ Have a lot of fun...");
                 this_instant.duration_since(
                     (&last_instant.unwrap()).clone())
                     .unwrap().as_secs() <= config.update_interval {
+                thread::sleep(Duration::from_secs(config.repeat_secs));
                 continue;
             }
     
