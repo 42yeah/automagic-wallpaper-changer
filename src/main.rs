@@ -123,11 +123,13 @@ Have a lot of fun...");
         attempts = 0;
         last_instant = Some(this_instant);
         if config.disable_cache {
-            if let Some(path) = last_path {
-                match std::fs::remove_file(path) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!("Could not removed cached image for some reason: {}. Skipping...", e);
+            if let Some(last_path) = last_path {
+                if path != last_path {
+                    match std::fs::remove_file(last_path) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("Could not removed cached image for some reason: {}. Skipping...", e);
+                        }
                     }
                 }
             }

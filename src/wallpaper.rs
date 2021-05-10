@@ -13,7 +13,9 @@ pub mod set_wallpaper {
 
     pub fn set_wallpaper(path: &str) -> Result<(), io::Error> {
         unsafe {
-            let path = OsStr::new(path)
+            let current_dir = env::current_dir()?;
+            let current_dir = current_dir.as_path().to_str().unwrap();
+            let path = OsStr::new(format!("{}/{}", current_dir, path))
                 .encode_wide()
                 // append null byte
                 .chain(iter::once(0))
