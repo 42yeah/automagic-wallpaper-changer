@@ -112,10 +112,10 @@ impl ToString for Hour {
                 String::from("afternoon")
             },
             16 | 17 => {
-                String::from("evening")
+                String::from("late afternoon")
             },
             18 | 19 => {
-                String::from("late evening")
+                String::from("evening")
             },
             20 | 21 => {
                 String::from("night")
