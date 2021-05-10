@@ -13,6 +13,7 @@ pub enum DownloadQuality {
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub repeat_secs: u64,
+    pub update_interval: u64,
     pub quality: DownloadQuality,
     pub unsplash_access_key: Option<String>,
     pub openweather_access_key: Option<String>,
@@ -28,6 +29,7 @@ impl Config {
         }
         let config = Config {
             repeat_secs: 60,
+            update_interval: 3600,
             quality: DownloadQuality::Full,
             unsplash_access_key: None,
             openweather_access_key: None,
