@@ -1,6 +1,7 @@
 mod weather;
 mod config;
 mod wallpaper;
+mod worker;
 
 use std::{env, error::Error, fs::create_dir, io::{ErrorKind, Read}, path::Path};
 
@@ -8,6 +9,8 @@ use reqwest::{blocking::Client, header::{HeaderMap, HeaderValue}};
 use serde::{Serialize, Deserialize};
 pub use config::Config;
 pub use weather::get_weather;
+
+pub use worker::{Worker, Message, MetaMessage};
 
 use crate::config::DownloadQuality;
 pub use crate::wallpaper::set_wallpaper::set_wallpaper;
@@ -179,13 +182,13 @@ mod tests {
             }
         }
         let config = Config::from_path("test.json").unwrap();
-        assert_eq!(config.repeat_secs, 60);
+        assert_eq!(config.repeat_secs, 1);
         match config.quality {
             DownloadQuality::Full => {},
             _ => panic!("Incorrect quality")
         }
         let config = Config::from_path("test.json").unwrap();
-        assert_eq!(config.repeat_secs, 60);
+        assert_eq!(config.repeat_secs, 1);
         match config.quality {
             DownloadQuality::Full => {},
             _ => panic!("Incorrect quality")

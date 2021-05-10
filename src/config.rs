@@ -28,7 +28,7 @@ impl Config {
             return Ok(serde_json::from_str(&std::fs::read_to_string(&path)?)?)
         }
         let config = Config {
-            repeat_secs: 60,
+            repeat_secs: 1,
             update_interval: 3600,
             quality: DownloadQuality::Full,
             unsplash_access_key: None,
