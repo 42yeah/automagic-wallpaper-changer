@@ -2,6 +2,7 @@
 
 #[cfg(any(target_os = "windows"))]
 pub mod set_wallpaper {
+    use std::{io, env};
     use std::os::windows::ffi::OsStrExt;
     use winapi::um::winuser::SystemParametersInfoW;
     use winapi::um::winuser::SPIF_SENDCHANGE;
@@ -15,7 +16,7 @@ pub mod set_wallpaper {
         unsafe {
             let current_dir = env::current_dir()?;
             let current_dir = current_dir.as_path().to_str().unwrap();
-            let path = OsStr::new(format!("{}/{}", current_dir, path))
+            let path = OsStr::new(&format!("{}/{}", current_dir, path))
                 .encode_wide()
                 // append null byte
                 .chain(iter::once(0))
