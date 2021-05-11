@@ -1,5 +1,5 @@
 
-use std::{sync::{mpsc::{self, Receiver, Sender}}, thread::{self, JoinHandle}};
+use std::{sync::{Arc, Mutex, mpsc::{self, Receiver, Sender}}, thread::{self, JoinHandle}};
 use std::{time::{Duration, SystemTime}};
 use chrono::{Local, Timelike};
 use rand::Rng;
@@ -29,20 +29,26 @@ pub enum State {
 pub struct Worker {
     thread: Option<JoinHandle<()>>,
     sender: Sender<Message>,
-    meta_sender: Sender<MetaMessage>
+    meta_sender: Sender<MetaMessage>,
+    pub state: Arc<Mutex<State>>
 }
 
 impl Worker {
     pub fn new() -> Worker {
         let (tx, rx) = mpsc::channel();
         let (sender, receiver) = mpsc::channel();
+        let state = Arc::new(Mutex::new(State::Stopped));
+        let state_thread = state.clone();
         let thread = thread::spawn(move || {
             loop {
+                let mut state = state_thread.lock().unwrap();
+                *state = State::Stopped;
+                drop(state);
                 match rx.recv().unwrap() {
                     MetaMessage::Start => {},
                     MetaMessage::Quit => break
                 }
-                Worker::work(&receiver);
+                Worker::work(&receiver, state_thread.clone());
             }
             
         });
@@ -50,13 +56,14 @@ impl Worker {
         let worker = Worker {
             thread: Some(thread),
             sender,
-            meta_sender: tx
+            meta_sender: tx,
+            state
         };
 
         worker
     }
 
-    fn work(receiver: &Receiver<Message>) {
+    fn work(receiver: &Receiver<Message>, state: Arc<Mutex<State>>) {
         let config = match Config::from_path(DEFAULT_CONFIG_PATH) {
             Ok(config) => config,
             Err(e) => {
@@ -121,14 +128,21 @@ Have a lot of fun...");
 
             let now = Local::now();
             let this_instant = SystemTime::now();
-    
+
+            let mut state_mut = state.lock().unwrap();
+            *state_mut = State::Idle;
+
             if last_instant.is_some() && 
                 this_instant.duration_since(
                     (&last_instant.unwrap()).clone())
                     .unwrap().as_secs() <= config.update_interval {
+                drop(state_mut);
                 thread::sleep(Duration::from_secs(config.repeat_secs));
                 continue;
             }
+
+            *state_mut = State::Running;
+            drop(state_mut);
     
             let mut query = Hour(now.hour()).to_string();
             match &config.openweather_access_key {

@@ -188,7 +188,7 @@
                 <input id="city" placeholder="">
             </div>
             <div class="buttons">
-                <a class="save" href="javascript:saveAndRestart()">Save & Restart</a>
+                <a id="save" class="save" href="javascript:saveAndRestart()">Save & Restart</a>
                 <a id="feeling-lucky" class="disabled save" href="javascript:lucky()">I'm feeling lucky</a>
                 <a id="start-stop" class="start" href="javascript:startOrStop()">Start</a>
             </div>
@@ -203,6 +203,7 @@
         let feelingLucky = document.querySelector("#feeling-lucky");
         let light = document.querySelector("#light");
         let status = document.querySelector("#status");
+        let save = document.querySelector("#save");
 
         const rpc = {
             invoke: (arg) => {
@@ -219,13 +220,36 @@
             },
             lucky: () => {
                 rpc.invoke({ cmd: "lucky" });
+            },
+            updateConfig: (config) => {
+                rpc.invoke({ cmd: "updateConfig", config });
+            },
+            updateState: () => {
+                rpc.invoke({ cmd: "updateState" });
             }
         };
 
         rpc.init();
 
+        function nullable(str) {
+            if (str == "") {
+                return null;
+            }
+            return str;
+        }
+
         function saveAndRestart() {
-            
+            let config = {
+                "repeat_secs": +document.querySelector('#repeat-secs').value,
+                "update_interval": +document.querySelector('#wallpaper-interval').value,
+                "unsplash_access_key": nullable(document.querySelector('#unsplash-access-key').value),
+                "openweather_access_key": nullable(document.querySelector('#openweather-access-key').value),
+                "city_weather": document.querySelector('#city').value,
+                "quality": document.querySelector('#quality').value,
+                "disable_cache": true
+            };
+            rpc.updateConfig(config);
+            save.classList.add("disabled");
         }
 
         function lucky() {
@@ -236,18 +260,8 @@
             }, 5000);
         }
 
-        function startOrStop() {
-            if (running) {
-                rpc.stop();
-                startStopButton.classList.remove("stop");
-                startStopButton.classList.add("start");
-                feelingLucky.classList.add("disabled");
-                light.classList.remove("ok");
-                light.classList.add("stopped");
-                status.innerHTML = "Worker is currently stopped.";
-                startStopButton.innerHTML = "Start";
-            } else {
-                rpc.start();
+        function render(r) {
+            if (r) {
                 startStopButton.classList.add("stop");
                 startStopButton.classList.remove("start");
                 feelingLucky.classList.remove("disabled");
@@ -255,9 +269,37 @@
                 light.classList.add("ok");
                 status.innerHTML = "Worker is currently running.";
                 startStopButton.innerHTML = "Stop";
+            } else {
+                startStopButton.classList.remove("stop");
+                startStopButton.classList.add("start");
+                feelingLucky.classList.add("disabled");
+                light.classList.remove("ok");
+                light.classList.add("stopped");
+                status.innerHTML = "Worker is currently stopped.";
+                startStopButton.innerHTML = "Start";
             }
+            this.running = r;
+        }
+
+        function startOrStop() {
+            if (running) {
+                rpc.stop();
+            } else {
+                rpc.start();
+            }
+            startStopButton.classList.add("disabled");
+            setTimeout(() => {
+                startStopButton.classList.remove("disabled");
+            }, 3000);
             running = !running;
         }
+
+        function updateState() {
+            rpc.updateState();
+            setTimeout(updateState, 500);
+        }
+
+        updateState();
     </script>
 </body>
 </html>

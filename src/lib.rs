@@ -10,13 +10,12 @@ use serde::{Serialize, Deserialize};
 pub use config::Config;
 pub use weather::get_weather;
 
-pub use worker::{Worker, Message, MetaMessage};
+pub use worker::{Worker, Message, MetaMessage, State};
 
-pub use crate::config::DownloadQuality;
+pub use crate::config::{DownloadQuality, DEFAULT_CONFIG_PATH};
 pub use crate::wallpaper::set_wallpaper::set_wallpaper;
 
 const API_BASE_URL: &str = "https://api.unsplash.com";
-pub const DEFAULT_CONFIG_PATH: &str = "./config.json";
 pub const DEFAULT_DOWNLOAD_PATH: &str = "download";
 const MAXIMUM_PER_PAGE: i32 = 100;
 

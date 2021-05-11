@@ -1,5 +1,7 @@
-use std::{error::Error, path::Path};
+use std::{error::Error, io, path::Path};
 use serde::{Serialize, Deserialize};
+
+pub const DEFAULT_CONFIG_PATH: &str = "./config.json";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DownloadQuality {
@@ -10,7 +12,7 @@ pub enum DownloadQuality {
     Thumb
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub repeat_secs: u64,
     pub update_interval: u64,
@@ -39,5 +41,11 @@ impl Config {
         let config_str = serde_json::to_string(&config)?;
         std::fs::write(path, config_str)?;
         Ok(config)
+    }
+
+    pub fn save(&self) -> Result<(), io::Error> {
+        let config_str = serde_json::to_string(self)?;
+        std::fs::write(DEFAULT_CONFIG_PATH, config_str)?;
+        Ok(())
     }
 }
