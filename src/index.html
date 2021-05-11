@@ -293,7 +293,7 @@
                 status.innerHTML = "Worker is currently stopped.";
                 startStopButton.innerHTML = "Start";
             }
-            this.running = r;
+            running = r;
         }
 
         function startOrStop() {
@@ -306,7 +306,6 @@
             setTimeout(() => {
                 startStopButton.classList.remove("disabled");
             }, 3000);
-            running = !running;
         }
 
         function updateState() {
