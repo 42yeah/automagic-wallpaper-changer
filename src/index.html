@@ -153,6 +153,17 @@
             background-color: unset;
             pointer-events: none;
         }
+
+        .inline {
+            display: inline;
+        }
+
+        .checkbox {
+            width: unset !important;
+            border: unset !important;
+            cursor: default;
+            margin-left: 10px;
+        }
     </style>
     <div class="container">
         <h3>Automagic Wallpaper Changer configuration</h3>
@@ -186,6 +197,10 @@
             <div class="input-field">
                 <label for="city">OpenWeatherMap city:</label>
                 <input id="city" placeholder="">
+            </div>
+            <div class="input-field">
+                <label for="cache" class="inline">Enable Cache?</label>
+                <input id="cache" type="checkbox" class="checkbox">
             </div>
             <div class="buttons">
                 <a id="save" class="save" href="javascript:saveAndRestart()">Save & Restart</a>
@@ -246,7 +261,7 @@
                 "openweather_access_key": nullable(document.querySelector('#openweather-access-key').value),
                 "city_weather": document.querySelector('#city').value,
                 "quality": document.querySelector('#quality').value,
-                "disable_cache": true
+                "disable_cache": !document.querySelector("#cache").checked
             };
             rpc.updateConfig(config);
             save.classList.add("disabled");

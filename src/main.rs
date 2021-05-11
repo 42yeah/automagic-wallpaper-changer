@@ -27,7 +27,7 @@ fn main() {
     web_view::builder()
         .title("Automagic Wallpaper Changer")
         .content(Content::Html(html))
-        .size(350, 590)
+        .size(350, 620)
         .resizable(false)
         .debug(true)
         .user_data(config.clone())
@@ -44,7 +44,8 @@ fn main() {
                     document.querySelector('#unsplash-access-key').value = '{}';
                     document.querySelector('#openweather-access-key').value = '{}';
                     document.querySelector('#city').value = '{}'
-                    document.querySelector('#quality').value = '{}';",
+                    document.querySelector('#quality').value = '{}';
+                    document.querySelector('#cache').checked = {}",
                     config.repeat_secs,
                     config.update_interval,
                     match &config.unsplash_access_key {
@@ -62,6 +63,10 @@ fn main() {
                         DownloadQuality::Regular => "Regular",
                         DownloadQuality::Small => "Small",
                         DownloadQuality::Thumb => "Thumb"
+                    },
+                    match &config.disable_cache {
+                        true => "false",
+                        false => "true"
                     })) {
                         Ok(_) => {}
                         Err(e) => {
