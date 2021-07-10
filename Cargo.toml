@@ -11,3 +11,4 @@ serde = { version = "1.0.125", features = ["derive"] }
 rand = "0.8.3"
 chrono = "0.4.19"
 winapi = { version = "0.3.9", features = ["winuser"] }
+tray-item = "0.5.0-alpha"

@@ -3,11 +3,34 @@ use std::{process, thread, time::{Duration, SystemTime}};
 use awc::{Config, DEFAULT_CONFIG_PATH, DEFAULT_DOWNLOAD_PATH, Hour, download_photo, get_weather, make_unsplash_client, search_photos, set_wallpaper};
 use chrono::{Local, Timelike};
 use rand::Rng;
+use tray_item::TrayItem;
 
 const MAXIMUM_ATTEMPTS: i32 = 5;
 const WAIT_SECS: u64 = 60;
 
+
+#[cfg(any(target_os = "windows"))]
+fn tray() {
+    let mut tray = TrayItem::new("awc", "").unwrap();
+    tray.add_menu_item("Quit", || {
+        std::process::exit(0);
+    }).unwrap();
+}
+
+#[cfg(any(target_os = "macos"))]
+fn tray() {
+    let mut tray = TrayItem::new("awc", "").unwrap();
+    let mut inner = tray.inner_mut();
+    inner.add_quit_item("Quit");
+    inner.display();
+}
+
 fn main() {
+    thread::spawn(background);
+    tray();
+}
+
+fn background() {
     let config = match Config::from_path(DEFAULT_CONFIG_PATH) {
         Ok(config) => config,
         Err(e) => {
@@ -34,8 +57,11 @@ Otherwise, you can just leave it as it is.
 WARNING: weather messes up with the query term, and you might get
 wallpapers in the wrong time.
 
-`repeat_secs` is the interval before I download another wallpaper -
+`update_interval` is the interval before I download another wallpaper -
 it is one hour by default.
+
+`repeat_secs` is how long does it repeats a check. It is 60 seconds by
+default, but you can tone it down if you want.
 
 The quality is splitted into 5 levels, as the Unsplash API states:
 Raw, Full, Regular, Small and Thumb.
@@ -50,6 +76,8 @@ Have a lot of fun...");
     let mut last_instant: Option<SystemTime> = None;
     let mut last_path: Option<String> = None;
 
+
+
     if config.disable_cache {
         match std::fs::remove_dir_all(DEFAULT_DOWNLOAD_PATH) {
             Ok(_) => {
@@ -63,7 +91,7 @@ Have a lot of fun...");
         let now = Local::now();
         let this_instant = SystemTime::now();
 
-        if last_instant.is_some() && 
+        if last_instant.is_some() &&
             this_instant.duration_since(
                 (&last_instant.unwrap()).clone())
                     .unwrap().as_secs() <= config.update_interval {
@@ -81,11 +109,14 @@ Have a lot of fun...");
                     eprintln!("Failed to get weather information: {} Skipping...", e);
                 }
             },
-            None => {}
+            None => {
+                query.push(' ');
+                query.push_str(&config.city_weather);
+            }
         };
-        
+
         println!("Trying to search from unsplash with: {}", query);
-        
+
         let results = match search_photos(&client, &query) {
             Ok(results) => {
                 results
@@ -104,7 +135,7 @@ Have a lot of fun...");
         };
         let choice = rand::thread_rng().gen_range(0..results.results.len());
         let choice = &results.results[choice];
-        
+
         let path = match download_photo(&client, choice, config.quality.clone()) {
             Ok(path) => path,
             Err(e) => {
@@ -136,7 +167,7 @@ Have a lot of fun...");
         }
         last_path = Some(path.clone());
         println!("New photo downloaded at: {}. Setting wallpaper...", path);
-        
+
         match set_wallpaper(&path) {
             Ok(_) => {}
             Err(e) => {
