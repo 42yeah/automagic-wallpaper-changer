@@ -26,8 +26,9 @@ fn tray() {
 }
 
 fn main() {
-    thread::spawn(background);
+    let handler = thread::spawn(background);
     tray();
+    handler.join().unwrap();
 }
 
 fn background() {
